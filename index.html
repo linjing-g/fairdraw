@@ -69,6 +69,35 @@
         .flash-overlay {
             animation: bg-flash 1s ease-out forwards;
         }
+
+        /* Winning slice pulses while the rest of the wheel is dimmed */
+        .slice-winner {
+            animation: winner-pulse 0.9s ease-in-out infinite;
+            transform-origin: 50px 50px;
+            transform-box: view-box;
+        }
+        @keyframes winner-pulse {
+            0%, 100% { transform: scale(1); filter: brightness(1); }
+            50% { transform: scale(1.06); filter: brightness(1.2); }
+        }
+
+        /* Staggered entrance for the finale recap rows */
+        @keyframes rise-in {
+            from { opacity: 0; transform: translateY(16px) scale(0.96); }
+            to { opacity: 1; transform: none; }
+        }
+        .animate-rise {
+            animation: rise-in 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+        }
+
+        /* Soft pulsing glow inviting the first click */
+        @keyframes cta-pulse {
+            0%, 100% { box-shadow: 0 20px 25px -5px rgb(199 210 254), 0 0 0 0 rgba(99, 102, 241, 0.4); }
+            50% { box-shadow: 0 20px 25px -5px rgb(199 210 254), 0 0 0 12px rgba(99, 102, 241, 0); }
+        }
+        .spin-cta-idle {
+            animation: cta-pulse 2s ease-in-out infinite;
+        }
     </style>
 <script type="importmap">
 {

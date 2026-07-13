@@ -7,31 +7,44 @@ interface WheelSpinnerProps {
   isSpinning: boolean;
   rotation: number;
   tokens: Token[];
+  winnerTokenId: string | null;
 }
 
-const WheelSpinner: React.FC<WheelSpinnerProps> = ({ isSpinning, rotation, tokens }) => {
+const WheelSpinner: React.FC<WheelSpinnerProps> = ({ isSpinning, rotation, tokens, winnerTokenId }) => {
   const wheelRef = useRef<SVGSVGElement>(null);
+  const pointerRef = useRef<HTMLDivElement>(null);
   const totalTokens = tokens.length;
   const sliceAngle = totalTokens > 0 ? 360 / totalTokens : 360;
 
   const lastTickAngle = useRef(0);
   useEffect(() => {
-    if (isSpinning) {
-        const checkTick = () => {
-            if (!wheelRef.current) return;
-            const style = window.getComputedStyle(wheelRef.current);
-            const matrix = new DOMMatrixReadOnly(style.transform);
-            const angle = Math.atan2(matrix.b, matrix.a) * (180 / Math.PI);
-            const normalizedAngle = (angle + 360) % 360;
-            
-            if (Math.abs(normalizedAngle - lastTickAngle.current) > sliceAngle) {
-                audioService.playTick();
-                lastTickAngle.current = normalizedAngle;
-            }
-            if (isSpinning) requestAnimationFrame(checkTick);
-        };
-        requestAnimationFrame(checkTick);
-    }
+    if (!isSpinning) return;
+    let raf: number;
+    const checkTick = () => {
+        if (!wheelRef.current) return;
+        const style = window.getComputedStyle(wheelRef.current);
+        const matrix = new DOMMatrixReadOnly(style.transform);
+        const angle = Math.atan2(matrix.b, matrix.a) * (180 / Math.PI);
+        const normalizedAngle = (angle + 360) % 360;
+
+        if (Math.abs(normalizedAngle - lastTickAngle.current) > sliceAngle) {
+            audioService.playTick();
+            // Flick the pointer as if it just snapped over a peg
+            pointerRef.current?.animate(
+              [
+                { transform: 'rotate(0deg)' },
+                { transform: 'rotate(-22deg)' },
+                { transform: 'rotate(8deg)' },
+                { transform: 'rotate(0deg)' },
+              ],
+              { duration: 140, easing: 'ease-out' }
+            );
+            lastTickAngle.current = normalizedAngle;
+        }
+        raf = requestAnimationFrame(checkTick);
+    };
+    raf = requestAnimationFrame(checkTick);
+    return () => cancelAnimationFrame(raf);
   }, [isSpinning, sliceAngle]);
 
   const slices = useMemo(() => {
@@ -58,8 +71,15 @@ const WheelSpinner: React.FC<WheelSpinnerProps> = ({ isSpinning, rotation, token
       // Shrink text a little as more slices are added so labels keep fitting.
       const fontSize = totalTokens <= 6 ? 3.8 : totalTokens <= 10 ? 3.0 : 2.4;
 
+      const isWinner = winnerTokenId !== null && token.id === winnerTokenId;
+      const isDimmed = winnerTokenId !== null && token.id !== winnerTokenId;
+
       return (
-        <g key={token.id}>
+        <g
+          key={token.id}
+          className={isWinner ? 'slice-winner' : undefined}
+          style={{ opacity: isDimmed ? 0.15 : 1, transition: 'opacity 0.5s ease' }}
+        >
           <path d={pathData} fill={token.color} stroke="#ffffff" strokeWidth="0.8" />
           <text
             x={textX}
@@ -79,15 +99,17 @@ const WheelSpinner: React.FC<WheelSpinnerProps> = ({ isSpinning, rotation, token
         </g>
       );
     });
-  }, [tokens, sliceAngle, totalTokens]);
+  }, [tokens, sliceAngle, totalTokens, winnerTokenId]);
 
   return (
-    <div className="relative w-[320px] h-[320px] md:w-[480px] md:h-[480px] wheel-container mx-auto">
+    <div className="relative w-[min(75vw,48vh)] h-[min(75vw,48vh)] md:w-[min(36vw,58vh)] md:h-[min(36vw,58vh)] wheel-container mx-auto">
       <div className="absolute top-[-10px] left-1/2 -translate-x-1/2 z-30">
-        <svg width="40" height="40" viewBox="0 0 40 40">
-            <path d="M 20 40 L 0 0 L 40 0 Z" fill="#1e293b" />
-            <circle cx="20" cy="10" r="4" fill="white" />
-        </svg>
+        <div ref={pointerRef} style={{ transformOrigin: '50% 0%' }}>
+          <svg width="40" height="40" viewBox="0 0 40 40">
+              <path d="M 20 40 L 0 0 L 40 0 Z" fill="#1e293b" />
+              <circle cx="20" cy="10" r="4" fill="white" />
+          </svg>
+        </div>
       </div>
 
       <svg
@@ -110,8 +132,6 @@ const WheelSpinner: React.FC<WheelSpinnerProps> = ({ isSpinning, rotation, token
             className="tracking-tighter"
         >PICK</text>
       </svg>
-      
-      <div className="absolute inset-[-20px] border-[20px] border-white/50 rounded-full -z-10 pointer-events-none" />
     </div>
   );
 };
